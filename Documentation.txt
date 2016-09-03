@@ -1,0 +1,156 @@
+/*-----------------------------------------------------------------------------------------------------------------
+/	Name         : RING WIN APIs \Or/ WIN APIs FOR RING
+/	Purpose      : Brings the power of WIN APIs into Ring Programming Language
+/
+/	Authors : 
+/		1- Majdi Sobain <MajdiSobain@Gmail.com>
+/		2- 
+/
+/
+/			Copyright (c) 2016
+/------------------------------------------------------------------------------------------------------------------*/
+
+
+/* Note:
+      This extension library contains the extension file (ring_winapi.dll) , the extension-related ring functions (winapi.ring) , and
+       the header of extension-related ring functions (winapi.rh)
+*/
+
+
+/* =========================================================
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Function Name : rwaIsRunAsAdmin
+Func. Purpose : Check whether this process (ring.exe) is running as administrator or not
+Func. Params  : () Nothing
+Func. Return  : True or False
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+
+ - - - - - - - - - - - - - - - - - - EXAMPLE - - - - - - - - - - - - - - - */
+Load "WINAPI.ring"
+
+If rwaIsRunAsAdmin() = True 
+	See "Ring is running as administrator"
+Ok
+
+
+/*=========================================================*/
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Function Name : rwaElevate
+Func. Purpose : Elevate to ask administrator rights for the process
+Func. Params  : Either (String exepath) for running a particular app as administrator
+				/Or/   (String exepath, String params) to run a particular app with some parameters
+Func. Return  : Nothing
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+
+ - - - - - - - - - - - - - - - - - - EXAMPLE - - - - - - - - - - - - - - - */
+Load "WINAPI.ring"
+
+If rwaIsRunAsAdmin() = False
+	rwaElevate(exefilename(), filename())	#This will elevate ring and open the currently running app as Admin
+Ok
+
+/* - - - - - - - - - - - - - - Another EXAMPLE - - - - - - - - - - - - */
+Load "WINAPI.ring"
+
+rwaElevate("C:\Windows\explorer.exe")	#The path of the executable file should be correct
+
+
+/*=========================================================*/
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Function Name : rShellExecute
+Func. Type	  : 
+Func. Purpose : Execute\Open an application or file with specific action
+Func. Params  : (HWND hwnd, String lpOperation, String lpFile, String lpParameters, String lpDirectory, INT nShowCmd)
+Func. Return  : the value that returned by ShellExecute() function
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+
+ - - - - - - - - - - - - - - - - - - EXAMPLE - - - - - - - - - - - - - - - */
+Load "WINAPI.ring"
+
+# This function will open "rnote.ring" file in the "notpad.exe"
+rShellExecute(NULL, "Open", "C:\Windows\notepad.exe", CurrentDir() + "\rnote.ring", NULL, SW_SHOWNORMAL)
+
+# for more information on how to use it search net about using ShellExecute() function
+
+
+/*=========================================================*/
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Function Name : rShellExecuteResult
+Func. Type	  : This is local ring function created in "winapi.ring"
+Func. Purpose : it is a good function to reveal the code returned by rShellExecute()
+Func. Params  : ( RetID ) is the code that has been returned by rShellExecute() function
+Func. Return  : a string containing the interpretaion of the code returned by rShellExecute()
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+
+ - - - - - - - - - - - - - - - - - - EXAMPLE - - - - - - - - - - - - - - - */
+Load "WINAPI.ring"
+
+res = rShellExecute(NULL, "Open", "C:\Windows\notepad.exe", CurrentDir() + "\rnote.ring", NULL, SW_SHOWNORMAL)
+See rShellExecuteResult(res)
+
+
+/*=========================================================*/
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Function Name : rwaIsWow64Process
+Func. Purpose : Check whether this process (ring.exe) is a Wow64 process or not
+Func. Params  : () Nothing
+Func. Return  : (1) if True or (0) if False or (-1) if function failed
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+
+ - - - - - - - - - - - - - - - - - - EXAMPLE - - - - - - - - - - - - - - - */
+Load "WINAPI.ring"
+
+Switch rwaIsWow64Process()
+On -1
+	See "The function couldn't check ring correctly"
+On 0
+	See "Ring is not running as a Wow64Process"
+On 1
+	See "Ring is running as a Wow64Process"
+Off
+
+
+/*=========================================================*/
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Function Name : rwaUserSID
+Func. Purpose : Return User SID
+Func. Params  : Either (HANDLE handle) of a process /Or/ () Nothing for the current process
+Func. Return  : User SID in a string format
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+
+ - - - - - - - - - - - - - - - - - - EXAMPLE - - - - - - - - - - - - - - - */
+Load "WINAPI.ring"
+
+See rwaUserSID()
+
+/*=========================================================*/
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Function Name : rwaSysErrorMsg
+Func. Purpose : Return the string error message from the passed error code
+Func. Params  : Either (Number ID) to return a message in English
+				/Or/   (Number ID, BOOL allowlocale) to return a message in the user locale
+Func. Return  : Error message
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+
+ - - - - - - - - - - - - - - - - - - EXAMPLE - - - - - - - - - - - - - - - */
+# Note: this function has no practical use now becuase there is no any other function that 
+#            return Error Codes to be revealed by this function but will be very usefull in the future
+
+Load "WINAPI.ring"
+
+rwaSysErrorMsg(5) 		# 5 is the error code that may be returned by other functions
+
+
+
+
+
+
+
+
