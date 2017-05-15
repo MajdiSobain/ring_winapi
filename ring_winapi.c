@@ -10,9 +10,9 @@ Ext. Rules : There are some rules that have been followed in here to make this l
 		This will make it easier for developers to seek the documentation of their original functions
 	2 - Functions that has special purpose depending on WIN APIs like "rwaElevate()"
 		This type of functions is better to be preceded by 'rwa' (short for RING WIN APIs) as this will
-		a make it kind of native and in the same time distinguish it from the other type of functions
+		make it kind of native and in the same time distinguish it from the other type of functions
 3) There's no rule in specifying locally used functions names but it will be nice to have some native touch
-4) Each function has to be registered using the function of registration at the end of this library (This is an essential ring extensions rule)
+4) Each non local function has to be registered using the function of registration at the end of this library (This is an essential ring extensions rule)
 
                 Enjoy :)
 
@@ -22,6 +22,8 @@ Ext. Rules : There are some rules that have been followed in here to make this l
 
 #include "ring.h"
 #include "windows.h"
+#include <stdio.h>
+#include <ctype.h>
 #include "Sddl.h"		// added to get User SID by ConvertSidToStringSid()
 
 
@@ -34,7 +36,7 @@ Ext. Rules : There are some rules that have been followed in here to make this l
 
 
 /*
-Function Name : GetErrorMsg
+Function Name : rwaGetErrorMsg
 Func. Purpose : Return System error message
 Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
 */
@@ -60,40 +62,19 @@ LPSTR rwaGetErrorMsg(LONG ErrorId , LPSTR pMsg, size_t pMsgsize){
 	return pMsg;
 }
 
-/* 
-===================================================================================== 
-=====================================================================================
-*/
-
-
-
-//------------------------------------------------------------------------------------
-
-
-
-/*===================================================================================
-                             Library Functions
-===================================================================================*/
-
 
 /*
-Function Name : rwaIsRunAsAdmin
-Func. Purpose : Check whether this process (ring.exe) is running as administrator or not
-Func. Params  : () Nothing
-Func. Return  : True or False
+Function Name : IsRunAsAdmin
+Func. Purpose : Return (1) if current program is elevated, (0) if not, or (-1) if there's error during checking
 Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
 Func. Source  : Created with help from SpaceWorm's post at http://www.cplusplus.com/forum/windows/101207/
 */
-RING_FUNC(ring_winapi_rwaisrunasadmin) {
+char IsRunAsAdmin(){
 	BOOL fIsRunAsAdmin = FALSE;
 	DWORD dwError = ERROR_SUCCESS;
 	PSID pAdministratorsGroup = NULL;
 	SID_IDENTIFIER_AUTHORITY NtAuthority = SECURITY_NT_AUTHORITY;
-	
-	if ( RING_API_PARACOUNT != 0 ) {
-		RING_API_ERROR("Error: No parameters are needed in this method");
-		return ;
-	}
+
   
     if (!AllocateAndInitializeSid(
         &NtAuthority, 
@@ -123,14 +104,57 @@ Cleanup:
 
     if (ERROR_SUCCESS != dwError)
     {
-		char errmsg[200];
-		RING_API_ERROR(rwaGetErrorMsg(GetLastError(),errmsg,200));
-		RING_API_RETNUMBER(0);
-		return;
+		return -1;
     }
+	
+	if (fIsRunAsAdmin) {return 1;} else {return 0;}
+}
 
-    RING_API_RETNUMBER(fIsRunAsAdmin);
-	return;
+/* 
+===================================================================================== 
+=====================================================================================
+*/
+
+
+
+//------------------------------------------------------------------------------------
+
+
+
+/*===================================================================================
+                             Library Functions
+===================================================================================*/
+
+
+/*
+Function Name : rwaIsRunAsAdmin
+Func. Purpose : Check whether this process (ring.exe) is running as administrator or not
+Func. Params  : () Nothing
+Func. Return  : True or False
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+*/
+RING_FUNC(ring_winapi_rwaisrunasadmin) {
+	
+	if ( RING_API_PARACOUNT != 0 ) {
+		RING_API_ERROR("Error: No parameters are needed in this method");
+		return ;
+	}
+
+	switch (IsRunAsAdmin()) {
+		case 1:
+			RING_API_RETNUMBER(1);
+			break;
+		case 0:
+			RING_API_RETNUMBER(0);
+			break;
+		case -1: {
+			char errmsg[200];
+			RING_API_ERROR(rwaGetErrorMsg(GetLastError(),errmsg,200));
+			break;
+			}
+	}
+
+	return ;
 }
 
 
@@ -152,26 +176,60 @@ RING_FUNC(ring_winapi_rwaelevate) {
 	if ( RING_API_PARACOUNT == 1 ) {
 		if ( RING_API_ISSTRING(1) ) {
 			SHELLEXECUTEINFOA sei = { sizeof(sei) };
+			char appPath[200];
+			char entAppPath[200];
 			sei.lpVerb = "runas";
 			sei.lpFile = RING_API_GETSTRING(1);
 			sei.hwnd = NULL;
 			sei.nShow = SW_NORMAL;
-			if (!ShellExecuteExA(&sei)) {
-				char errmsg[200];
-				RING_API_ERROR(rwaGetErrorMsg(GetLastError(),errmsg,200));
+			
+			// ---------------------------retrieve and unify paths-----------------------------
+			GetModuleFileName(NULL,appPath,200);
+			strcpy(entAppPath, RING_API_GETSTRING(1));
+			for (int i=0; i < strlen(appPath); i++) appPath[i] = tolower(appPath[i]);
+			for (int i=0; i < strlen(entAppPath); i++) entAppPath[i] = tolower(entAppPath[i]);
+			for (int i=0; i < strlen(appPath); i++) if (appPath[i] == '/' ) appPath[i] = '\\';
+			for (int i=0; i < strlen(entAppPath); i++) if (entAppPath[i] == '/') entAppPath[i] = '\\';
+			
+			if ( (!strcmp(entAppPath, appPath) && !IsRunAsAdmin()) || strcmp(entAppPath, appPath) ) {
+				if (!ShellExecuteExA(&sei)) {
+					char errmsg[200];
+					RING_API_ERROR(rwaGetErrorMsg(GetLastError(),errmsg,200));
+				}
 			}
 		} else RING_API_ERROR(RING_API_BADPARATYPE);
 	} else {
 		if ( RING_API_ISSTRING(1) && RING_API_ISSTRING(2) ) {
 			SHELLEXECUTEINFOA sei = { sizeof(sei) };
+			char appPath[200];
+			char entAppPath[200];
+			char lcFileName[200];
+			char entFilePath[200];
 			sei.lpVerb = "runas";
 			sei.lpFile = RING_API_GETSTRING(1);
 			sei.lpParameters = RING_API_GETSTRING(2);
 			sei.hwnd = NULL;
 			sei.nShow = SW_NORMAL;
-			if (!ShellExecuteExA(&sei)) {
-				char errmsg[200];
-				RING_API_ERROR(rwaGetErrorMsg(GetLastError(),errmsg,200));
+			
+			// ---------------------------retrieve and unify paths-----------------------------
+			GetModuleFileName(NULL,appPath,200);
+			strcpy(entAppPath, RING_API_GETSTRING(1));
+			strcpy(lcFileName, ((VM *) pPointer)->cFileName);
+			strcpy(entFilePath, RING_API_GETSTRING(2));
+			for (int i=0; i < strlen(appPath); i++) appPath[i] = tolower(appPath[i]);
+			for (int i=0; i < strlen(appPath); i++) if (appPath[i] == '/' ) appPath[i] = '\\';
+			for (int i=0; i < strlen(entAppPath); i++) entAppPath[i] = tolower(entAppPath[i]);
+			for (int i=0; i < strlen(entAppPath); i++) if (entAppPath[i] == '/' ) entAppPath[i] = '\\';
+			for (int i=0; i < strlen(lcFileName); i++) lcFileName[i] = tolower(lcFileName[i]);
+			for (int i=0; i < strlen(lcFileName); i++) if (lcFileName[i] == '/') lcFileName[i] = '\\';
+			for (int i=0; i < strlen(entFilePath); i++) entFilePath[i] = tolower(entFilePath[i]);
+			for (int i=0; i < strlen(entFilePath); i++) if (entFilePath[i] == '/') entFilePath[i] = '\\';
+			
+			if ( (!strcmp(entAppPath, appPath) && !strcmp(entFilePath, lcFileName) && !IsRunAsAdmin()) || strcmp(entAppPath, appPath) || strcmp(entFilePath, lcFileName) ) {
+				if (!ShellExecuteExA(&sei)) {
+					char errmsg[200];
+					RING_API_ERROR(rwaGetErrorMsg(GetLastError(),errmsg,200));
+				}
 			}
 		} else RING_API_ERROR(RING_API_BADPARATYPE);
 	}
