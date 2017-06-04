@@ -314,26 +314,38 @@ Func. Return  : (1) if True or (0) if False or (-1) if function failed
 Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
 */
 RING_FUNC(ring_winapi_rwaiswow64process) {
+	typedef BOOL (WINAPI *LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
+	LPFN_ISWOW64PROCESS fnIsWow64Process;
 	PBOOL IsWOW = (PBOOL) malloc(sizeof(BOOL));
+	assert(IsWOW);
+	
 	if ( RING_API_PARACOUNT != 0 ) {
 		RING_API_ERROR("Error: No parameters are needed in this method");
 		return ;
 	}
-	assert(IsWOW);
-	if (IsWow64Process(GetCurrentProcess(),IsWOW)) { 
-		if (IsWOW[0]) {
-			free(IsWOW); 
-			RING_API_RETNUMBER(1);
-			return; 
+	
+	fnIsWow64Process = (LPFN_ISWOW64PROCESS) GetProcAddress( // To check availability of the function in Target Windows
+        GetModuleHandle(TEXT("kernel32")),"IsWow64Process");	
+	if (NULL != fnIsWow64Process) {
+		if (fnIsWow64Process(GetCurrentProcess(),IsWOW)) { 
+			if (IsWOW[0]) {
+				free(IsWOW); 
+				RING_API_RETNUMBER(1);
+				return; 
+			} else {
+				free(IsWOW); 
+				RING_API_RETNUMBER(0);
+				return; 
+			}
 		} else {
 			free(IsWOW); 
-			RING_API_RETNUMBER(0);
+			RING_API_RETNUMBER(-1);
 			return; 
 		}
 	} else {
 		free(IsWOW); 
 		RING_API_RETNUMBER(-1);
-		return; 
+		return;
 	}
 }
 
