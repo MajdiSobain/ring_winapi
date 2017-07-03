@@ -129,6 +129,24 @@ Load "WINAPI.ring"
 
 See rwaUserSID()
 
+
+/*=========================================================*/
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Function Name : rwaUserName
+Func. Purpose : Return user name according to the passed process
+				Note: if no parameter passed it will retrieve current user name
+Func. Params  : Either (HANDLE handle) of a process /Or/ () Nothing for the current process
+Func. Return  : User name in a string format
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+Func. Source  : https://msdn.microsoft.com/en-us/library/windows/desktop/aa379166(v=vs.85).aspx
+Minimum supported Win client\server : XP(Desktop_apps)\Server2003(Desktop_apps)
+
+ - - - - - - - - - - - - - - - - - - EXAMPLE - - - - - - - - - - - - - - - */
+Load "WINAPI.ring"
+
+See rwaUserName()
+
 /*=========================================================*/
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 

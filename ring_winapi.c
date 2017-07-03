@@ -410,6 +410,75 @@ RING_FUNC(ring_winapi_rwausersid) {
 
 
 /*
+Function Name : rwaUserName
+Func. Purpose : Return user name according to the passed process
+				Note: if no parameter passed it will retrieve current user name
+Func. Params  : Either (HANDLE handle) of a process /Or/ () Nothing for the current process
+Func. Return  : User name in a string format
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+Func. Source  : https://msdn.microsoft.com/en-us/library/windows/desktop/aa379166(v=vs.85).aspx
+Minimum supported Win client\server : XP(Desktop_apps)\Server2003(Desktop_apps)
+*/
+RING_FUNC(ring_winapi_rwausername) {
+	BOOL bResult = FALSE;
+	HANDLE hTokenHandle = NULL;
+	HANDLE hProcess = NULL;
+	if (RING_API_PARACOUNT > 1) {
+		RING_API_ERROR("Error: This function expects no or one parameter");
+		return;
+	}
+	if (RING_API_PARACOUNT == 1) {
+		if (RING_API_ISPOINTER(1)) {
+			hProcess = (HANDLE)RING_API_GETCPOINTER(1, "HANDLE");
+			if (!hProcess) {
+				RING_API_ERROR("Error: No valid process handle");
+				return;
+			}
+		}
+		else {
+			RING_API_ERROR("Error: No valid process handle");
+			return;
+		}
+	}
+	else hProcess = GetCurrentProcess();
+	if (OpenProcessToken(hProcess, TOKEN_QUERY, &hTokenHandle))
+	{
+		PTOKEN_USER pUserToken = NULL;
+		DWORD dwRequiredLength = 0;
+		if (!GetTokenInformation(hTokenHandle, TokenUser, pUserToken, 0, &dwRequiredLength))
+		{
+			pUserToken = (PTOKEN_USER)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwRequiredLength);
+			if (NULL != pUserToken)
+			{
+				if (GetTokenInformation(hTokenHandle, TokenUser, pUserToken, dwRequiredLength, &dwRequiredLength))
+				{
+					DWORD res;
+					LPTSTR AccountN; 
+					PSID_NAME_USE peUse = (PSID_NAME_USE)calloc(1, sizeof(SID_NAME_USE));
+					LPDWORD AccNlen = (LPDWORD)calloc(1, sizeof(DWORD far));
+					LPDWORD DomLen = (LPDWORD)calloc(1, sizeof(DWORD far));
+					LookupAccountSid(NULL, (PSID)pUserToken->User.Sid, NULL, AccNlen, NULL, DomLen, peUse);
+					AccountN = (LPTSTR)malloc((DWORD)AccNlen + 1);
+					if (LookupAccountSid(NULL, (PSID)pUserToken->User.Sid, AccountN, AccNlen, NULL, DomLen, peUse)){
+							RING_API_RETSTRING(AccountN);
+					} else RING_API_ERROR("Error: cannot retrieve user name");
+					free(AccNlen);
+					free(DomLen);
+					free(peUse);
+					free(AccountN);
+				}
+				HeapFree(GetProcessHeap(), 0, pUserToken);
+			}
+		}
+		CloseHandle(hTokenHandle);
+	}
+	return;
+
+}
+
+
+
+/*
 Function Name : rwaSysErrorMsg
 Func. Purpose : Return the string error message from the passed error code
 Func. Params  : Either (Number ID) to return a message in English
@@ -607,6 +676,7 @@ RING_API void ringlib_init ( RingState *pRingState ) {
 	ring_vm_funcregister("rshellexecute", ring_winapi_rshellexecute);
 	ring_vm_funcregister("rwaiswow64process", ring_winapi_rwaiswow64process);
 	ring_vm_funcregister("rwausersid", ring_winapi_rwausersid);
+	ring_vm_funcregister("rwausername", ring_winapi_rwausername);
 	ring_vm_funcregister("rgetlasterror", ring_winapi_rgetlasterror);
 	ring_vm_funcregister("rwow64enablewow64fsredirection", ring_winapi_rwow64enablewow64fsredirection);
 	ring_vm_funcregister("rwadisablewow64fsredirection", ring_winapi_rwadisablewow64fsredirection);
