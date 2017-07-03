@@ -7,7 +7,7 @@
 /		2- 
 /
 /
-/			Copyright (c) 2016
+/			Copyright (c) 2016-2017
 /------------------------------------------------------------------------------------------------------------------*/
 
 
@@ -140,17 +140,110 @@ Func. Return  : Error message
 Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
 
  - - - - - - - - - - - - - - - - - - EXAMPLE - - - - - - - - - - - - - - - */
-# Note: this function has no practical use now becuase there is no any other function that 
-#            return Error Codes to be revealed by this function but will be very usefull in the future
 
 Load "WINAPI.ring"
 
 rwaSysErrorMsg(5) 		# 5 is the error code that may be returned by other functions
 
+/*=========================================================*/
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Function Name : rGetLastError
+Func. Purpose : Return the last error code
+Func. Params  : ---
+Func. Return  : Error code
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+Func. Source  : https://msdn.microsoft.com/en-us/library/ms679360.aspx
+Minimum supported Win client\server\phone : XP\Server2003\Phone8
+
+ - - - - - - - - - - - - - - - - - - EXAMPLE - - - - - - - - - - - - - - - */
+
+Load "WINAPI.ring"
+
+errorCode = rGetLastError()
+See rwaSysErrorMsg(errorCode) 		# This function will return the string message of the error codes
 
 
+/*=========================================================*/
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Function Name : rWow64EnableWow64FsRedirection
+Func. Purpose : Enable or Disable file system redirection under Wow64 environment
+Func. Params  : True for enabling and False for disabling
+Func. Return  : True if succeed or False if not
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+Func. Source  : https://msdn.microsoft.com/en-us/library/aa365744.aspx
+Minimum supported Win client\server : Vista(Desktop_apps)\Server2003(Desktop_apps)
+
+ - - - - - - - - - - - - - - - - - - EXAMPLE - - - - - - - - - - - - - - - */
+
+Load "WINAPI.ring"
+
+# Disable file system redirection
+if rwaIsWow64Process() = 1
+	if rWow64EnableWow64FsRedirection(False)
+		see "File system redirection disabled successfully" + NL
+	else
+		see "Error: File system redirection can not be disabled" + NL
+ok
+# Enable file system redirection
+if rwaIsWow64Process() = 1
+	if rWow64EnableWow64FsRedirection(True)
+		see "File system redirection enabled successfully" + NL
+	else
+		see "Error: File system redirection can not be enabled" + NL
+ok
 
 
+/*=========================================================*/
 
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Function Name : rwaDisableWow64FsRedirection
+Func. Purpose : Disable file system redirection under Wow64 environment (More reliable)
+Func. Params  : ---
+Func. Return  : Pointer to data that should be passed to rwaRevertWow64FsRedirection() function
+				if you want to re-enable redirection
+				Note: This function must not be used with rWow64EnableWow64FsRedirection() function
+					at the same time
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+Func. Source  : https://msdn.microsoft.com/en-us/library/aa365743.aspx
+Minimum supported Win client\server :  XP_Pro_x64(Desktop_apps)\Server2003SP1(Desktop_apps)
+
+ - - - - - - - - - - - - - - - - - - EXAMPLE - - - - - - - - - - - - - - - */
+
+Load "WINAPI.ring"
+
+# Disable file system redirection
+if rwaIsWow64Process() = 1
+	DataHp = rwaDisableWow64FsRedirection()	# To revert file system redirection DataHp is necessary
+ok
+
+
+/*=========================================================*/
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Function Name : rwaRevertWow64FsRedirection
+Func. Purpose : Re-enable file system redirection that was disabled by rwaDisableWow64FsRedirection()
+Func. Params  : Pointer to data that has been created by rwaDisableWow64FsRedirection()
+Func. Return  : True if revert file system redirection succeed or False if not
+				Note: This function must not be used with rWow64EnableWow64FsRedirection() function
+					at the same time
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+Func. Source  : https://msdn.microsoft.com/en-us/library/aa365743.aspx
+Minimum supported Win client\server :  XP_Pro_x64(Desktop_apps)\Server2003SP1(Desktop_apps)
+
+ - - - - - - - - - - - - - - - - - - EXAMPLE - - - - - - - - - - - - - - - */
+
+Load "WINAPI.ring"
+
+# Revert file system redirection from disabled state
+if rwaIsWow64Process() = 1
+	if rwaRevertWow64FsRedirection(DataHp)	# DataHp is a pointer to a returned data
+											# from rwaDisableWow64FsRedirection() function
+		See "The file system redirection has been reverted successfully"
+	else
+		See "Error: The file system redirection can not be reverted"
+	ok
+ok
 
 

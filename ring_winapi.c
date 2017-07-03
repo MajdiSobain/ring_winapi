@@ -22,6 +22,7 @@ Ext. Rules : There are some rules that have been followed in here to make this l
 
 #include "ring.h"
 #include "windows.h"
+#include "WinBase.h"
 #include <stdio.h>
 #include <ctype.h>
 #include "Sddl.h"		// added to get User SID by ConvertSidToStringSid()
@@ -478,6 +479,121 @@ RING_FUNC(ring_winapi_rwasyserrormsg) {
 
 
 /*
+Function Name : rGetLastError
+Func. Purpose : Return the last error code
+Func. Params  : ---
+Func. Return  : Error code
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+Func. Source  : https://msdn.microsoft.com/en-us/library/ms679360.aspx
+Minimum supported Win client\server\phone : XP\Server2003\Phone8
+*/
+RING_FUNC(ring_winapi_rgetlasterror) {
+	if (RING_API_PARACOUNT != 0) {
+		RING_API_ERROR("Error: Bad parameter count, this function does not accept parameters");
+		return;
+	}
+
+	RING_API_RETNUMBER((DWORD) GetLastError());
+}
+
+
+
+/*
+Function Name : rWow64EnableWow64FsRedirection
+Func. Purpose : Enable or Disable file system redirection under Wow64 environment
+Func. Params  : True for enabling and False for disabling
+Func. Return  : True if succeed or False if not
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+Func. Source  : https://msdn.microsoft.com/en-us/library/aa365744.aspx
+Minimum supported Win client\server : Vista(Desktop_apps)\Server2003(Desktop_apps)
+*/
+RING_FUNC(ring_winapi_rwow64enablewow64fsredirection) {
+	if (RING_API_PARACOUNT != 1) {
+		RING_API_ERROR("Error: Bad parameter count, this function accepts one parameter only");
+		return;
+	}
+
+	if (!RING_API_ISNUMBER(1)) {
+		RING_API_ERROR(RING_API_BADPARATYPE);
+		return;
+	}
+
+	RING_API_RETNUMBER((int)Wow64EnableWow64FsRedirection((BOOL) RING_API_GETNUMBER(1)));
+
+}
+
+
+
+/*
+Function Name : rwaDisableWow64FsRedirection
+Func. Purpose : Disable file system redirection under Wow64 environment (More reliable)
+Func. Params  : ---
+Func. Return  : Pointer to data that should be passed to rwaRevertWow64FsRedirection() function
+				if you want to re-enable redirection
+				Note: This function must not be used with rWow64EnableWow64FsRedirection() function
+					at the same time
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+Func. Source  : https://msdn.microsoft.com/en-us/library/aa365743.aspx
+Minimum supported Win client\server :  XP_Pro_x64(Desktop_apps)\Server2003SP1(Desktop_apps)
+*/
+RING_FUNC(ring_winapi_rwadisablewow64fsredirection) {
+	PVOID OldValue = NULL;
+
+	if (RING_API_PARACOUNT != 0) {
+		RING_API_ERROR("Error: Bad parameter count, this function does not accept parameters");
+		return;
+	}
+
+	if (Wow64DisableWow64FsRedirection(&OldValue))
+	{
+		RING_API_RETCPOINTER(OldValue, "PVOID");
+	}
+	else {
+		RING_API_ERROR("Error: rwaDisableWow64FsRedirection unexpected error");
+		return;
+	}	
+
+}
+
+
+
+/*
+Function Name : rwaRevertWow64FsRedirection
+Func. Purpose : Re-enable file system redirection that was disabled by rwaDisableWow64FsRedirection()
+Func. Params  : Pointer to data that has been created by rwaDisableWow64FsRedirection()
+Func. Return  : True if revert file system redirection succeed or False if not
+				Note: This function must not be used with rWow64EnableWow64FsRedirection() function
+					at the same time
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+Func. Source  : https://msdn.microsoft.com/en-us/library/aa365743.aspx
+Minimum supported Win client\server :  XP_Pro_x64(Desktop_apps)\Server2003SP1(Desktop_apps)
+*/
+RING_FUNC(ring_winapi_rwarevertwow64fsredirection) {
+	PVOID OldValue = NULL;
+
+	if (RING_API_PARACOUNT != 1) {
+		RING_API_ERROR("Error: Bad parameter count, this function accepts one parameter only");
+		return;
+	}
+
+	if (!RING_API_ISCPOINTER(1)) {
+		RING_API_ERROR(RING_API_BADPARATYPE);
+		return;
+	}
+
+	OldValue = (PVOID) RING_API_GETCPOINTER(1, "PVOID");
+	
+	if (Wow64RevertWow64FsRedirection(OldValue)){
+		RING_API_RETNUMBER(1);
+	} else {
+		RING_API_RETNUMBER(0);
+	}
+
+	CloseHandle(OldValue);
+}
+
+
+/*
 =================================================================================================
 			This Function Is Needed for Registration Of This Library 
 			Functions Into Ring
@@ -491,5 +607,9 @@ RING_API void ringlib_init ( RingState *pRingState ) {
 	ring_vm_funcregister("rshellexecute", ring_winapi_rshellexecute);
 	ring_vm_funcregister("rwaiswow64process", ring_winapi_rwaiswow64process);
 	ring_vm_funcregister("rwausersid", ring_winapi_rwausersid);
-
+	ring_vm_funcregister("rgetlasterror", ring_winapi_rgetlasterror);
+	ring_vm_funcregister("rwow64enablewow64fsredirection", ring_winapi_rwow64enablewow64fsredirection);
+	ring_vm_funcregister("rwadisablewow64fsredirection", ring_winapi_rwadisablewow64fsredirection);
+	ring_vm_funcregister("rwarevertwow64fsredirection", ring_winapi_rwarevertwow64fsredirection);
+	
 }
