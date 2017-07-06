@@ -16,7 +16,7 @@ Ext. Rules : There are some rules that have been followed in here to make this l
 
                 Enjoy :)
 
-									Copyright (c) 2016 
+									Copyright (c) 2016-2017
 */
 
 
@@ -41,7 +41,7 @@ Function Name : rwaGetErrorMsg
 Func. Purpose : Return System error message
 Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
 */
-LPSTR rwaGetErrorMsg(LONG ErrorId , LPSTR pMsg, size_t pMsgsize){
+LPSTR rwaGetErrorMsg(LONG ErrorId , LPTSTR pMsg, size_t pMsgsize){
     LPSTR pBuffer = NULL;
 	FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
                   NULL, 
@@ -361,8 +361,7 @@ Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
 Func. Source  : Created with help from Rose's post at http://www.codeexperts.com/showthread.php?1220-Getting-a-user-SID-in-term-of-string-from-a-process-handle-process-id
 */
 RING_FUNC(ring_winapi_rwausersid) { 
-	BOOL bResult = FALSE ;
-	char szUserSID[1024];
+	DWORD res;
 	HANDLE hTokenHandle = NULL ;
 	HANDLE hProcess = NULL;
 	if ( RING_API_PARACOUNT > 1 ) {
@@ -381,29 +380,37 @@ RING_FUNC(ring_winapi_rwausersid) {
 			return;
 		}
 	} else hProcess = GetCurrentProcess();
-	if(OpenProcessToken(hProcess, TOKEN_QUERY, &hTokenHandle))
+	res = OpenProcessToken(hProcess, TOKEN_QUERY, &hTokenHandle);
+	if (SUCCEEDED(res))
 	{
 		PTOKEN_USER pUserToken = NULL ;
 		DWORD dwRequiredLength = 0 ;
-		if(!GetTokenInformation(hTokenHandle, TokenUser, pUserToken, 0, &dwRequiredLength))
+		GetTokenInformation(hTokenHandle, TokenUser, pUserToken, 0, &dwRequiredLength);
+		pUserToken = (PTOKEN_USER) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwRequiredLength) ;
+		if(NULL != pUserToken)
 		{
-			pUserToken = (PTOKEN_USER) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwRequiredLength) ;
-			if(NULL != pUserToken)
+			res = GetTokenInformation(hTokenHandle, TokenUser, pUserToken, dwRequiredLength, &dwRequiredLength);
+			if (SUCCEEDED(res))
 			{
-				if(GetTokenInformation(hTokenHandle, TokenUser, pUserToken, dwRequiredLength, &dwRequiredLength))
-				{
-					LPSTR pszSID ;
-					ConvertSidToStringSidA(pUserToken->User.Sid, &pszSID) ;
-					strcpy(szUserSID, pszSID) ; 
-					LocalFree(pszSID) ;
-				}
-				HeapFree(GetProcessHeap(), 0, pUserToken) ;
+				LPTSTR pszSID;
+				ConvertSidToStringSidA(pUserToken->User.Sid, &pszSID) ;
+				RING_API_RETSTRING(pszSID);
+				LocalFree(pszSID) ;
 			}
+			HeapFree(GetProcessHeap(), 0, pUserToken) ;
+		}
+		else {
+			CloseHandle(hTokenHandle);
+			RING_API_ERROR("Error: Unable to allocate pUserToken");
 		}
 
 		CloseHandle(hTokenHandle) ;
 	}
-	RING_API_RETSTRING(szUserSID);
+
+	if (!SUCCEEDED(res)) {
+		char errmsg[200];
+		RING_API_ERROR(rwaGetErrorMsg(GetLastError(), errmsg, 200));
+	}
 	return;
 }
 
@@ -420,7 +427,7 @@ Func. Source  : https://msdn.microsoft.com/en-us/library/windows/desktop/aa37916
 Minimum supported Win client\server : XP(Desktop_apps)\Server2003(Desktop_apps)
 */
 RING_FUNC(ring_winapi_rwausername) {
-	BOOL bResult = FALSE;
+	DWORD res;
 	HANDLE hTokenHandle = NULL;
 	HANDLE hProcess = NULL;
 	if (RING_API_PARACOUNT > 1) {
@@ -441,36 +448,46 @@ RING_FUNC(ring_winapi_rwausername) {
 		}
 	}
 	else hProcess = GetCurrentProcess();
-	if (OpenProcessToken(hProcess, TOKEN_QUERY, &hTokenHandle))
+	res = OpenProcessToken(hProcess, TOKEN_QUERY, &hTokenHandle);
+	if (SUCCEEDED(res))
 	{
 		PTOKEN_USER pUserToken = NULL;
 		DWORD dwRequiredLength = 0;
-		if (!GetTokenInformation(hTokenHandle, TokenUser, pUserToken, 0, &dwRequiredLength))
+		GetTokenInformation(hTokenHandle, TokenUser, pUserToken, 0, &dwRequiredLength);
+		pUserToken = (PTOKEN_USER)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwRequiredLength);
+		if (NULL != pUserToken)
 		{
-			pUserToken = (PTOKEN_USER)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwRequiredLength);
-			if (NULL != pUserToken)
+			res = GetTokenInformation(hTokenHandle, TokenUser, pUserToken, dwRequiredLength, &dwRequiredLength);
+			if (SUCCEEDED(res))
 			{
-				if (GetTokenInformation(hTokenHandle, TokenUser, pUserToken, dwRequiredLength, &dwRequiredLength))
-				{
-					DWORD res;
-					LPTSTR AccountN; 
-					PSID_NAME_USE peUse = (PSID_NAME_USE)calloc(1, sizeof(SID_NAME_USE));
-					LPDWORD AccNlen = (LPDWORD)calloc(1, sizeof(DWORD far));
-					LPDWORD DomLen = (LPDWORD)calloc(1, sizeof(DWORD far));
-					LookupAccountSid(NULL, (PSID)pUserToken->User.Sid, NULL, AccNlen, NULL, DomLen, peUse);
-					AccountN = (LPTSTR)malloc((DWORD)AccNlen + 1);
-					if (LookupAccountSid(NULL, (PSID)pUserToken->User.Sid, AccountN, AccNlen, NULL, DomLen, peUse)){
-							RING_API_RETSTRING(AccountN);
-					} else RING_API_ERROR("Error: cannot retrieve user name");
-					free(AccNlen);
-					free(DomLen);
-					free(peUse);
-					free(AccountN);
-				}
-				HeapFree(GetProcessHeap(), 0, pUserToken);
+				LPTSTR AccountN;
+				PSID_NAME_USE peUse = (PSID_NAME_USE)calloc(1, sizeof(SID_NAME_USE));
+				LPDWORD AccNlen = (LPDWORD)calloc(1, sizeof(DWORD far));
+				LPDWORD DomLen = (LPDWORD)calloc(1, sizeof(DWORD far));
+				LookupAccountSid(NULL, (PSID)pUserToken->User.Sid, NULL, AccNlen, NULL, DomLen, peUse);
+				AccountN = (LPTSTR)malloc((DWORD)AccNlen + 1);
+				res = LookupAccountSid(NULL, (PSID)pUserToken->User.Sid, AccountN, AccNlen, NULL, DomLen, peUse);
+				if (SUCCEEDED(res)){
+						RING_API_RETSTRING(AccountN);
+				} 
+				free(AccNlen);
+				free(DomLen);
+				free(peUse);
+				free(AccountN);
 			}
+			HeapFree(GetProcessHeap(), 0, pUserToken);
 		}
+		else {
+			CloseHandle(hTokenHandle);
+			RING_API_ERROR("Error: Unable to allocate pUserToken");
+		}
+
 		CloseHandle(hTokenHandle);
+	}
+
+	if (!SUCCEEDED(res)) {
+		char errmsg[200];
+		RING_API_ERROR(rwaGetErrorMsg(GetLastError(), errmsg, 200));
 	}
 	return;
 
