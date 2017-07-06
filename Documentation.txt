@@ -264,4 +264,21 @@ if rwaIsWow64Process() = 1
 	ok
 ok
 
+/*=========================================================*/
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Function Name : rwaEnvirVarString
+Func. Purpose : Return the string value of system environment variables
+Func. Params  : string contains a system environment variables
+Func. Return  : String value of system environment variables
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+Func. Source  : https://msdn.microsoft.com/en-us/library/windows/desktop/ms724265(v=vs.85).aspx
+Minimum supported Win client\server : Win2000Pro(Desktop_apps)\Server2000(Desktop_apps)
+
+ - - - - - - - - - - - - - - - - - - EXAMPLE - - - - - - - - - - - - - - - */
+
+Load "WINAPI.ring"
+
+See rwaEnvirVarString("%SystemRoot%")
+
 

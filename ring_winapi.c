@@ -679,6 +679,49 @@ RING_FUNC(ring_winapi_rwarevertwow64fsredirection) {
 }
 
 
+
+/*
+Function Name : rwaEnvirVarString
+Func. Purpose : Return the string value of system environment variables
+Func. Params  : string contains a system environment variables
+Func. Return  : String value of system environment variables
+Func. Auther  : Majdi Sobain <MajdiSobain@Gmail.com>
+Func. Source  : https://msdn.microsoft.com/en-us/library/windows/desktop/ms724265(v=vs.85).aspx
+Minimum supported Win client\server : Win2000Pro(Desktop_apps)\Server2000(Desktop_apps)
+*/
+RING_FUNC(ring_winapi_rwaenvirvarstring) {
+	DWORD res; 
+	LPTSTR exStr = (LPTSTR)malloc(200*sizeof(TCHAR));
+	if (RING_API_PARACOUNT != 1) {
+		RING_API_ERROR("Error: Bad parameter count, this function accepts one parameter");
+		return;
+	}
+
+	if (!RING_API_ISSTRING(1)) {
+		RING_API_ERROR(RING_API_BADPARATYPE);
+		return;
+	}
+
+	res = ExpandEnvironmentStrings(RING_API_GETSTRING(1), exStr, 200);
+	if (res > 200)
+	{
+		exStr = (LPTSTR)malloc ((res + 1)*sizeof(TCHAR));
+		res = ExpandEnvironmentStrings(RING_API_GETSTRING(1), exStr, res +1);
+	}
+
+	if (SUCCEEDED(res)) {
+		RING_API_RETSTRING(exStr);
+		free(exStr);
+	}
+	else {
+		char errmsg[200];
+		free(exStr);
+		RING_API_ERROR(rwaGetErrorMsg(GetLastError(), errmsg, 200));
+	}
+	
+}
+
+
 /*
 =================================================================================================
 			This Function Is Needed for Registration Of This Library 
@@ -698,5 +741,6 @@ RING_API void ringlib_init ( RingState *pRingState ) {
 	ring_vm_funcregister("rwow64enablewow64fsredirection", ring_winapi_rwow64enablewow64fsredirection);
 	ring_vm_funcregister("rwadisablewow64fsredirection", ring_winapi_rwadisablewow64fsredirection);
 	ring_vm_funcregister("rwarevertwow64fsredirection", ring_winapi_rwarevertwow64fsredirection);
-	
+	ring_vm_funcregister("rwaenvirvarstring", ring_winapi_rwaenvirvarstring);
+
 }
